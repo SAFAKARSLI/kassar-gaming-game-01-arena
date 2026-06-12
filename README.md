@@ -162,16 +162,19 @@ check. Your URL is `wss://<your-app>.onrender.com`.
 
 ### 2. Deploy the client to Vercel
 
-The repo includes [`vercel.json`](vercel.json) with `buildCommand: npm run build`.
-Vercel auto-detects the Next.js app in `apps/client` and runs the build there;
-the client's `prebuild` script compiles the shared package first, so the build
-is self-contained.
+The client ships [`apps/client/vercel.json`](apps/client/vercel.json), which sets
+the build command (`npm run build` — its `prebuild` compiles the shared package
+first) and the output directory (`.next`). It's read when the project's **Root
+Directory is `apps/client`**.
 
 1. In Vercel: **Add New Project**, import this repo.
-2. Leave the **Root Directory** as the repo root — Vercel detects the Next.js app
-   under `apps/client` automatically. (If Vercel asks, you may also set the Root
-   Directory to `apps/client`; both work because `prebuild` builds the shared
-   package.)
+2. Set **Root Directory** to **`apps/client`** (Settings → General → Root
+   Directory). Leave **Build Command** and **Output Directory** on their
+   defaults / "Override" **off** — `apps/client/vercel.json` provides them.
+   > ⚠️ Do **not** set Output Directory to `apps/client/.next` in the dashboard.
+   > With Root Directory already at `apps/client`, that doubles the path
+   > (`apps/client/apps/client/.next`) and the build fails. Leave it as the
+   > default `.next`.
 3. Add an **Environment Variable**:
    - `NEXT_PUBLIC_SERVER_URL = wss://<your-railway-or-render-domain>`
      (use `wss://` — Vercel is HTTPS, so the WebSocket must be secure).
