@@ -12,6 +12,7 @@ import {
   type PlayerState,
 } from '@arena/shared';
 import type { ArenaRoom } from '@/lib/network';
+import { audio } from '@/lib/audio';
 
 export function Hud({
   room,
@@ -40,6 +41,28 @@ export function Hud({
   inputEnabledRef.current = Boolean(local?.alive) && state.roundState === RoundState.Playing;
 
   const roundState = state.roundState as RoundState;
+
+  // Crowd audio reacts to the round flow.
+  useEffect(() => {
+    switch (roundState) {
+      case RoundState.Playing:
+        audio.setCrowdIntensity(0.45);
+        audio.cheer(0.4);
+        break;
+      case RoundState.RoundEnd:
+        audio.setCrowdIntensity(0.9);
+        audio.cheer(0.85);
+        break;
+      case RoundState.MatchEnd:
+        audio.setCrowdIntensity(1);
+        audio.cheer(1);
+        break;
+      default:
+        audio.setCrowdIntensity(0.15);
+        break;
+    }
+  }, [roundState]);
+
   const isSpectating = Boolean(local && !local.alive) && roundState === RoundState.Playing;
   const weapon = getWeapon(local?.weapon ?? 'sword');
 

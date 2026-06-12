@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Canvas } from '@react-three/fiber';
 import { connectToRoom, type ArenaRoom } from '@/lib/network';
 import { useInput } from '@/lib/input';
+import { audio } from '@/lib/audio';
 import { Scene } from '@/components/Scene';
 import { Hud } from '@/components/Hud';
 
@@ -27,6 +28,17 @@ export default function Game({ code, name, host }: GameProps) {
   const inputEnabledRef = useRef(true);
   const inputRef = useInput(inputEnabledRef);
 
+  // Browsers require a user gesture before audio can play.
+  useEffect(() => {
+    const start = () => audio.init();
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+    };
+  }, []);
+
   useEffect(() => {
     let active = true;
     let joined: ArenaRoom | null = null;
@@ -44,7 +56,7 @@ export default function Game({ code, name, host }: GameProps) {
         // Transient combat feedback channel. Hit flashes are already driven by
         // `lastHitAt` in the state; registering a handler keeps the console clean
         // and gives a hook for future VFX (screen shake, particles).
-        r.onMessage('hit', () => {});
+        r.onMessage('hit', () => audio.impact());
         r.onError((_c, message) => {
           setError(message ?? 'Connection error');
           setStatus('error');

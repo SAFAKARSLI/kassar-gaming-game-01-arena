@@ -1,8 +1,10 @@
 # ⚔️ Arena Brawlers (MVP)
 
-A browser-based **online multiplayer arena brawler** inspired by platform-fighter
-knockback games. Up to **3 players** fight on a floating low-poly arena — last one
-standing wins the round, first to **5 points** wins the match.
+A browser-based **online multiplayer arena brawler** set in a low-poly **medieval
+gladiator arena** — a circular sand pit ringed by stone walls, towers, banners and
+a cheering crowd. Up to **3 players** fight; last one standing wins the round,
+first to **5 points** wins the match. The environment is fully procedural
+Three.js geometry (no external art assets) with synthesized crowd/combat audio.
 
 - **Server-authoritative** networking (server owns positions, health, damage,
   knockback, round state). Clients send only input + attack requests.
@@ -122,7 +124,9 @@ npm run build:shared  # rebuild the shared package after editing it
 
 - Everyone starts at **100 HP**. Take damage and you get knocked back **farther**
   the lower your HP gets.
-- Die by reaching **0 HP** *or* falling below the arena (`Y < -25`).
+- The pit is **enclosed** (stone walls contain you — no ring-outs), so death is by
+  reaching **0 HP**. Knockback now slams opponents into walls, ruined pillars and
+  cover instead of off a ledge. (`Y < -25` remains only as a safety net.)
 - Dead players become **spectators** — the camera keeps following the living.
 - Last player alive wins the round (**+1 point**); after 5 s the next round
   auto-starts and the arena resets.
@@ -215,7 +219,7 @@ unset (local dev) the client falls back to `ws://<hostname>:2567`.
 - ✅ Knockback that scales with accumulated damage
 - ✅ Weapon crates spawn & equip
 - ✅ Blocking (damage/knockback/speed)
-- ✅ Death by HP or falling off the map
+- ✅ Death by HP in an enclosed arena (knockback slams into walls/cover)
 - ✅ Spectator mode with following camera
 - ✅ Auto-restarting rounds + reset arena
 - ✅ Scoreboard + round/match messages

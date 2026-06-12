@@ -1,34 +1,46 @@
 'use client';
 
-import { PLATFORMS, DEATH_Y } from '@arena/shared';
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { RoundState } from '@arena/shared';
+import type { ArenaRoom } from '@/lib/network';
+import { Sky } from '@/components/arena/Sky';
+import { ArenaStructure } from '@/components/arena/ArenaStructure';
+import { Crowd } from '@/components/arena/Crowd';
+import { Torches } from '@/components/arena/Torches';
 
-/** Static low-poly arena: the platforms plus a faint death-boundary plane. */
-export function ArenaMesh() {
+/**
+ * The full medieval gladiator arena: sky, sand pit, stone walls + gates,
+ * spectator stands with a cheering crowd, towers, banners and torches.
+ *
+ * Crowd excitement and the gate doors react to the round state.
+ */
+export function ArenaMesh({ room }: { room: ArenaRoom }) {
+  const cheerRef = useRef(0.12);
+  const doorsOpenRef = useRef(0);
+
+  useFrame((_state, delta) => {
+    const rs = room.state.roundState as RoundState;
+
+    // Target crowd excitement.
+    let cheerTarget = 0.12;
+    if (rs === RoundState.Playing) cheerTarget = 0.4;
+    else if (rs === RoundState.RoundEnd) cheerTarget = 0.85;
+    else if (rs === RoundState.MatchEnd) cheerTarget = 1;
+    cheerRef.current += (cheerTarget - cheerRef.current) * Math.min(1, delta * 2.5);
+
+    // Gates open once the round is live (and during the count-in), closed otherwise.
+    const doorsTarget =
+      rs === RoundState.Playing || rs === RoundState.Countdown ? 1 : 0;
+    doorsOpenRef.current += (doorsTarget - doorsOpenRef.current) * Math.min(1, delta * 2);
+  });
+
   return (
     <group>
-      {PLATFORMS.map((p, i) => (
-        <mesh
-          key={i}
-          position={[p.cx, p.cy, p.cz]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[p.hx * 2, p.hy * 2, p.hz * 2]} />
-          <meshStandardMaterial color={p.color} roughness={0.9} metalness={0.05} />
-        </mesh>
-      ))}
-
-      {/* Subtle pillars under the main platform for depth. */}
-      <mesh position={[0, -6, -0.5]}>
-        <boxGeometry args={[1.2, 12, 1.2]} />
-        <meshStandardMaterial color="#334155" roughness={1} />
-      </mesh>
-
-      {/* Death boundary marker. */}
-      <mesh position={[0, DEATH_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[120, 40]} />
-        <meshBasicMaterial color="#7f1d1d" transparent opacity={0.12} />
-      </mesh>
+      <Sky />
+      <ArenaStructure doorsOpenRef={doorsOpenRef} />
+      <Crowd cheerRef={cheerRef} />
+      <Torches />
     </group>
   );
 }

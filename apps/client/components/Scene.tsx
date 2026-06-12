@@ -12,6 +12,7 @@ import {
 } from '@arena/shared';
 import type { ArenaRoom } from '@/lib/network';
 import type { InputState } from '@/lib/input';
+import { audio } from '@/lib/audio';
 import { ArenaMesh } from '@/components/ArenaMesh';
 import { PlayerView } from '@/components/PlayerView';
 import { CrateView } from '@/components/CrateView';
@@ -59,19 +60,27 @@ export function Scene({ room, localId, inputRef }: SceneProps) {
 
   return (
     <>
-      <color attach="background" args={['#0b1120']} />
-      <fog attach="fog" args={['#0b1120', 40, 90]} />
-      <ambientLight intensity={0.6} />
+      <color attach="background" args={['#bcd6f2']} />
+      <fog attach="fog" args={['#cfe0f0', 70, 150]} />
+      <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#bcd6f2', '#caa86a', 0.75]} />
       <directionalLight
-        position={[10, 20, 12]}
-        intensity={1.1}
+        position={[14, 34, 26]}
+        intensity={1.4}
+        color="#fff2cc"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
+        shadow-camera-near={1}
+        shadow-camera-far={90}
+        shadow-camera-left={-22}
+        shadow-camera-right={22}
+        shadow-camera-top={22}
+        shadow-camera-bottom={-22}
+        shadow-bias={-0.0004}
       />
-      <hemisphereLight args={['#a5b4fc', '#1e293b', 0.5]} />
 
-      <ArenaMesh />
+      <ArenaMesh room={room} />
 
       {playerIds.map((id) => (
         <PlayerView
@@ -144,6 +153,7 @@ function PredictionLoop({
     room.send('input', msg);
     if (enabled && attack) {
       room.send('attack', { seq: seq.current });
+      audio.swing();
     }
 
     // --- prediction + reconciliation ---

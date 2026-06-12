@@ -27,7 +27,7 @@ import {
   PLAYER_HALF_HEIGHT,
   PLAYER_RADIUS,
 } from './constants';
-import { PLATFORMS } from './arena';
+import { PLATFORMS, COVER_PILLARS, ARENA_RADIUS } from './arena';
 import type { InputMessage } from './types';
 
 /** Minimal mutable transform + velocity. PlayerState matches this structurally. */
@@ -123,6 +123,41 @@ export function stepKinematics(
 
   if (t.grounded) {
     t.jumps = 0;
+  }
+
+  // --- arena containment: keep fighters inside the circular pit (no ring-outs) ---
+  const maxR = ARENA_RADIUS - PLAYER_RADIUS;
+  const r = Math.hypot(body.x, body.z);
+  if (r > maxR) {
+    const nx = body.x / r;
+    const nz = body.z / r;
+    body.x = nx * maxR;
+    body.z = nz * maxR;
+    // Cancel the outward component of velocity so knockback "slams" into the wall.
+    const vOut = body.vx * nx + body.vz * nz;
+    if (vOut > 0) {
+      body.vx -= vOut * nx;
+      body.vz -= vOut * nz;
+    }
+  }
+
+  // --- cover pillar collision (solid circular columns) ---
+  for (const p of COVER_PILLARS) {
+    const dx = body.x - p.x;
+    const dz = body.z - p.z;
+    const d = Math.hypot(dx, dz);
+    const min = p.radius + PLAYER_RADIUS;
+    if (d > 0.0001 && d < min) {
+      const nx = dx / d;
+      const nz = dz / d;
+      body.x = p.x + nx * min;
+      body.z = p.z + nz * min;
+      const vIn = body.vx * nx + body.vz * nz;
+      if (vIn < 0) {
+        body.vx -= vIn * nx;
+        body.vz -= vIn * nz;
+      }
+    }
   }
 }
 

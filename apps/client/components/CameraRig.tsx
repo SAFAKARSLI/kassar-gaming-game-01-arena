@@ -54,11 +54,11 @@ export function CameraRig({
     const centerY = sumY / count;
     const spread = Math.max(0, maxX - minX);
 
-    const dist = clamp(17 + spread * 0.7, 17, 32);
-    desired.current.set(centerX * 0.7, 4 + centerY * 0.25, dist);
+    const dist = clamp(18 + spread * 0.7, 18, 30);
+    desired.current.set(centerX * 0.6, 4.5 + centerY * 0.25, dist);
     camera.position.lerp(desired.current, 0.08);
 
-    lookTarget.current.lerp(new Vector3(centerX * 0.7, Math.max(1.5, centerY * 0.4 + 1), 0), 0.1);
+    lookTarget.current.lerp(new Vector3(centerX * 0.6, Math.max(2, centerY * 0.4 + 1.5), 0), 0.1);
     camera.lookAt(lookTarget.current);
   });
 
