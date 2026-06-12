@@ -1,0 +1,13 @@
+# Render.com Blueprint for the Arena Brawlers game server.
+# Create a new "Blueprint" service from this repo and Render will use the
+# root Dockerfile. The frontend goes to Vercel (see README).
+services:
+  - type: web
+    name: arena-brawlers-server
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production

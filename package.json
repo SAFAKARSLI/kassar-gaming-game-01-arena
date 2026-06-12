@@ -1,0 +1,27 @@
+{
+  "name": "arena-brawlers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-based online multiplayer arena brawler (MVP)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @arena/shared",
+    "dev:server": "npm run dev -w @arena/server",
+    "dev:client": "npm run dev -w @arena/client",
+    "dev": "npm run build:shared && concurrently -n server,client -c green,cyan \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm run build:shared && npm run build -w @arena/server && npm run build -w @arena/client",
+    "lint": "npm run lint -w @arena/client",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "postinstall": "npm run build:shared"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
