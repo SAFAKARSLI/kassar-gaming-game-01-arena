@@ -9,6 +9,7 @@ import {
   MAX_HP,
   TARGET_SCORE,
   getWeapon,
+  RARITY_COLOR,
   type PlayerState,
 } from '@arena/shared';
 import type { ArenaRoom } from '@/lib/network';
@@ -113,18 +114,34 @@ export function Hud({
         </div>
       )}
 
+      {/* Crosshair — only while actively fighting */}
+      {local && local.alive && roundState === RoundState.Playing && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="relative h-5 w-5 opacity-80">
+            <span className="absolute left-1/2 top-0 h-2 w-[2px] -translate-x-1/2 bg-white/90" />
+            <span className="absolute bottom-0 left-1/2 h-2 w-[2px] -translate-x-1/2 bg-white/90" />
+            <span className="absolute top-1/2 left-0 h-[2px] w-2 -translate-y-1/2 bg-white/90" />
+            <span className="absolute top-1/2 right-0 h-[2px] w-2 -translate-y-1/2 bg-white/90" />
+            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+          </div>
+        </div>
+      )}
+
       {/* Current weapon — bottom center */}
       {local && local.alive && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-900/70 px-4 py-2 backdrop-blur">
-            <span
-              className="inline-block h-4 w-4 rounded"
-              style={{ background: weapon.color }}
-            />
-            <span className="text-sm font-semibold text-white">{weapon.name}</span>
-            <span className="text-xs text-slate-400">
-              {weapon.damage} dmg · {weapon.knockback} kb
+            <span className="inline-block h-3 w-3 rounded-full" style={{ background: RARITY_COLOR[weapon.rarity] }} />
+            <span className="text-sm font-bold" style={{ color: RARITY_COLOR[weapon.rarity] }}>
+              {weapon.name}
             </span>
+            <span className="text-[10px] uppercase tracking-wide text-slate-500">{weapon.rarity}</span>
+            {Number.isFinite(weapon.uses) && (
+              <span className="rounded bg-slate-800 px-1.5 text-xs font-semibold text-amber-300">
+                ×{local.weaponUses}
+              </span>
+            )}
+            {local.charging && <span className="text-xs font-semibold text-emerald-400">drawing…</span>}
           </div>
         </div>
       )}

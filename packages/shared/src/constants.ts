@@ -87,11 +87,11 @@ export const ROUND_END_MS = 5000;
 // ---------------------------------------------------------------------------
 
 /** Minimum / maximum delay between crate spawns (ms). */
-export const CRATE_SPAWN_MIN_MS = 10000;
-export const CRATE_SPAWN_MAX_MS = 15000;
+export const CRATE_SPAWN_MIN_MS = 5000;
+export const CRATE_SPAWN_MAX_MS = 8000;
 
 /** Maximum number of crates that can exist at once. */
-export const MAX_CRATES = 3;
+export const MAX_CRATES = 10;
 
 /** Size (edge length) of a crate cube. */
 export const CRATE_SIZE = 0.8;
@@ -109,3 +109,51 @@ export const BLOCK_REDUCTION = 0.7;
 
 export const PLAYER_COLORS: readonly string[] = ['#3b82f6', '#ef4444', '#22c55e'];
 export const PLAYER_COLOR_NAMES: readonly string[] = ['Blue', 'Red', 'Green'];
+
+// ---------------------------------------------------------------------------
+// First-person camera / aiming
+// ---------------------------------------------------------------------------
+
+/** Eye height above the player's body center (camera offset). */
+export const EYE_OFFSET = 0.7;
+
+/** Pitch clamp (radians) — how far up/down you can look. */
+export const PITCH_MIN = -1.2;
+export const PITCH_MAX = 1.2;
+
+/** Default mouse sensitivity (radians per pixel). */
+export const DEFAULT_MOUSE_SENS = 0.0022;
+
+/** Field of view for the first-person camera. */
+export const FP_FOV = 95;
+
+// ---------------------------------------------------------------------------
+// Combat
+// ---------------------------------------------------------------------------
+
+/**
+ * Directional blocking: a block only works if the attacker is within this angle
+ * of where the victim is facing (so hits from behind ignore the block).
+ */
+export const BLOCK_FRONT_ANGLE = (115 * Math.PI) / 180;
+export const BLOCK_FRONT_DOT = Math.cos(BLOCK_FRONT_ANGLE);
+
+// ---------------------------------------------------------------------------
+// Projectiles / explosives / hazards
+// ---------------------------------------------------------------------------
+
+/** Gravity on lobbed/thrown projectiles. */
+export const PROJECTILE_GRAVITY = 24;
+/** Gravity on arrows/bolts (flatter trajectory). */
+export const ARROW_GRAVITY = 7;
+/** Max lifetime of a flying projectile (ms) before it despawns. */
+export const PROJECTILE_LIFETIME_MS = 4500;
+/** Radius used for projectile↔player collision. */
+export const PROJECTILE_HIT_RADIUS = 0.55;
+/** Caps to keep the simulation cheap. */
+export const MAX_PROJECTILES = 48;
+export const MAX_HAZARDS = 14;
+/** How long a placed mine/trap stays armed before despawning (ms). */
+export const TRAP_LIFETIME_MS = 30000;
+/** Proximity radius that triggers a placed mine/trap. */
+export const TRAP_TRIGGER_RADIUS = 1.3;

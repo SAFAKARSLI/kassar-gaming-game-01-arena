@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Canvas } from '@react-three/fiber';
+import { FP_FOV } from '@arena/shared';
 import { connectToRoom, type ArenaRoom } from '@/lib/network';
 import { useInput } from '@/lib/input';
 import { audio } from '@/lib/audio';
@@ -26,16 +27,20 @@ export default function Game({ code, name, host }: GameProps) {
 
   // Spectators stop steering; the input hook reads this ref live.
   const inputEnabledRef = useRef(true);
-  const inputRef = useInput(inputEnabledRef);
+  const { inputRef, requestPointerLock } = useInput(inputEnabledRef);
+  const [locked, setLocked] = useState(false);
 
   // Browsers require a user gesture before audio can play.
   useEffect(() => {
     const start = () => audio.init();
     window.addEventListener('pointerdown', start, { once: true });
     window.addEventListener('keydown', start, { once: true });
+    const onLock = () => setLocked(document.pointerLockElement != null);
+    document.addEventListener('pointerlockchange', onLock);
     return () => {
       window.removeEventListener('pointerdown', start);
       window.removeEventListener('keydown', start);
+      document.removeEventListener('pointerlockchange', onLock);
     };
   }, []);
 
@@ -57,6 +62,7 @@ export default function Game({ code, name, host }: GameProps) {
         // `lastHitAt` in the state; registering a handler keeps the console clean
         // and gives a hook for future VFX (screen shake, particles).
         r.onMessage('hit', () => audio.impact());
+        r.onMessage('explosion', () => audio.explosion());
         r.onError((_c, message) => {
           setError(message ?? 'Connection error');
           setStatus('error');
@@ -113,12 +119,30 @@ export default function Game({ code, name, host }: GameProps) {
     <div className="relative h-full w-full bg-slate-950">
       <Canvas
         shadows
-        camera={{ fov: 45, position: [0, 5, 22], near: 0.1, far: 200 }}
+        camera={{ fov: FP_FOV, position: [0, 5, 22], near: 0.05, far: 200 }}
         gl={{ antialias: true }}
       >
         <Scene room={room} localId={localId} inputRef={inputRef} />
       </Canvas>
       <Hud room={room} localId={localId} inputEnabledRef={inputEnabledRef} />
+
+      {/* Pointer-lock prompt (click to capture the mouse for first-person look). */}
+      {!locked && (
+        <button
+          onClick={requestPointerLock}
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/45 text-center backdrop-blur-sm"
+        >
+          <div className="rounded-2xl border border-slate-600/60 bg-slate-900/80 px-8 py-6">
+            <div className="text-2xl font-black text-white">Click to enter the arena</div>
+            <div className="mt-2 text-sm text-slate-300">
+              Mouse to look · WASD to move · Space jump · Shift dash
+            </div>
+            <div className="text-sm text-slate-300">
+              Left-click attack · Right-click block · ESC to release the cursor
+            </div>
+          </div>
+        </button>
+      )}
     </div>
   );
 }

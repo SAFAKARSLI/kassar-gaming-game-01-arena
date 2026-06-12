@@ -1,14 +1,9 @@
 /**
  * Deterministic arcade kinematics shared by the server simulation and the
- * client prediction layer. Keeping the math in one place means the client's
- * predicted local player and the server's authority agree, minimizing
- * reconciliation corrections.
- *
- * NOTE: We intentionally use a small custom kinematic solver rather than a full
- * rigid-body engine on the server. It is deterministic, cheap to run headless
- * in Node, trivial to predict on the client, and gives the snappy "platform
- * fighter" feel this game needs. The code is structured so a heavier solver
- * (or rollback) could replace `stepKinematics` later without touching callers.
+ * client prediction layer. Movement arrives in world space (the client builds it
+ * from WASD + look yaw), so the solver itself is view-agnostic. Dash follows the
+ * aim direction. Structured behind `stepKinematics` so a heavier solver/rollback
+ * could replace it later.
  */
 
 import {
@@ -30,6 +25,11 @@ import {
 import { PLATFORMS, COVER_PILLARS, ARENA_RADIUS } from './arena';
 import type { InputMessage } from './types';
 
+/** Horizontal forward unit vector for a yaw. yaw=0 looks toward -Z. */
+export function yawForward(yaw: number): { x: number; z: number } {
+  return { x: Math.sin(yaw), z: -Math.cos(yaw) };
+}
+
 /** Minimal mutable transform + velocity. PlayerState matches this structurally. */
 export interface KinematicBody {
   x: number;
@@ -38,28 +38,34 @@ export interface KinematicBody {
   vx: number;
   vy: number;
   vz: number;
-  facing: number;
+  yaw: number;
 }
 
 /** Server/client-side transient state that is NOT replicated. */
 export interface KinematicTransient {
   grounded: boolean;
   jumps: number;
-  /** Remaining hit-stun in seconds (input control disabled while > 0). */
   stun: number;
-  /** Timestamp (ms) of last dash, for cooldown. */
   lastDashAt: number;
   dashing: boolean;
+  /** Set on the tick the body lands; consumed by the client for a camera bounce. */
+  justLanded: boolean;
+  /** Downward speed at the moment of landing (negative). */
+  landSpeed: number;
 }
 
 export function createTransient(): KinematicTransient {
-  return { grounded: false, jumps: 0, stun: 0, lastDashAt: 0, dashing: false };
+  return {
+    grounded: false,
+    jumps: 0,
+    stun: 0,
+    lastDashAt: 0,
+    dashing: false,
+    justLanded: false,
+    landSpeed: 0,
+  };
 }
 
-/**
- * Advance one body by `dt` seconds given the current input. Mutates both the
- * body and its transient state in place.
- */
 export function stepKinematics(
   body: KinematicBody,
   t: KinematicTransient,
@@ -67,10 +73,12 @@ export function stepKinematics(
   dt: number,
   now: number,
 ): void {
-  body.facing = input.facing >= 0 ? 1 : -1;
+  body.yaw = input.yaw;
   t.dashing = false;
+  t.justLanded = false;
+  const wasGrounded = t.grounded;
 
-  // --- horizontal control (disabled during hit-stun so knockback flies) ---
+  // --- horizontal control (world-space move; disabled during hit-stun) ---
   const speed = input.block ? MOVE_SPEED * BLOCK_MOVE_MULTIPLIER : MOVE_SPEED;
   if (t.stun <= 0) {
     const control = t.grounded ? GROUND_CONTROL : AIR_CONTROL;
@@ -84,16 +92,28 @@ export function stepKinematics(
     body.vz *= d;
   }
 
-  // --- jump (edge-triggered by the caller / input layer) ---
+  // --- jump ---
   if (input.jump && t.jumps < MAX_JUMPS) {
     body.vy = JUMP_VELOCITY;
     t.jumps += 1;
     t.grounded = false;
   }
 
-  // --- dash ---
+  // --- dash (follows aim direction) ---
   if (input.dash && now - t.lastDashAt >= DASH_COOLDOWN_MS) {
-    body.vx = body.facing * DASH_IMPULSE;
+    let dx = input.aimX;
+    let dz = input.aimZ;
+    const len = Math.hypot(dx, dz);
+    if (len > 0.001) {
+      dx /= len;
+      dz /= len;
+    } else {
+      const f = yawForward(input.yaw);
+      dx = f.x;
+      dz = f.z;
+    }
+    body.vx = dx * DASH_IMPULSE;
+    body.vz = dz * DASH_IMPULSE;
     body.vy = Math.max(body.vy, 1.5);
     t.lastDashAt = now;
     t.dashing = true;
@@ -102,11 +122,12 @@ export function stepKinematics(
   // --- gravity + integrate ---
   body.vy -= GRAVITY * dt;
   const prevFeet = body.y - PLAYER_HALF_HEIGHT;
+  const fallVy = body.vy;
   body.x += body.vx * dt;
   body.y += body.vy * dt;
   body.z += body.vz * dt;
 
-  // --- one-way platform collision (land on top while descending) ---
+  // --- one-way platform collision ---
   t.grounded = false;
   for (const p of PLATFORMS) {
     const top = p.cy + p.hy;
@@ -123,9 +144,13 @@ export function stepKinematics(
 
   if (t.grounded) {
     t.jumps = 0;
+    if (!wasGrounded) {
+      t.justLanded = true;
+      t.landSpeed = fallVy;
+    }
   }
 
-  // --- arena containment: keep fighters inside the circular pit (no ring-outs) ---
+  // --- arena containment (circular pit, no ring-outs) ---
   const maxR = ARENA_RADIUS - PLAYER_RADIUS;
   const r = Math.hypot(body.x, body.z);
   if (r > maxR) {
@@ -133,7 +158,6 @@ export function stepKinematics(
     const nz = body.z / r;
     body.x = nx * maxR;
     body.z = nz * maxR;
-    // Cancel the outward component of velocity so knockback "slams" into the wall.
     const vOut = body.vx * nx + body.vz * nz;
     if (vOut > 0) {
       body.vx -= vOut * nx;
@@ -141,7 +165,7 @@ export function stepKinematics(
     }
   }
 
-  // --- cover pillar collision (solid circular columns) ---
+  // --- cover pillar collision ---
   for (const p of COVER_PILLARS) {
     const dx = body.x - p.x;
     const dz = body.z - p.z;
@@ -163,7 +187,7 @@ export function stepKinematics(
 
 /** Knockback grows as the victim's accumulated damage rises (comeback mechanic). */
 export function effectiveKnockback(baseKnockback: number, victimHp: number): number {
-  const damageTakenPercent = (MAX_HP - victimHp) / MAX_HP; // 0 at full hp, 1 at 0 hp
+  const damageTakenPercent = (MAX_HP - victimHp) / MAX_HP;
   return baseKnockback * (1 + damageTakenPercent);
 }
 
@@ -179,15 +203,16 @@ export function applyKnockback(
   let dz = body.z - fromZ;
   const len = Math.hypot(dx, dz);
   if (len < 0.001) {
-    dx = body.facing;
-    dz = 0;
+    const f = yawForward(body.yaw);
+    dx = -f.x;
+    dz = -f.z;
   } else {
     dx /= len;
     dz /= len;
   }
   body.vx += dx * magnitude;
   body.vz += dz * magnitude * 0.4;
-  body.vy += magnitude * 0.55 + 2; // pop up so victims sail off the edge
+  body.vy += magnitude * 0.5 + 2;
   t.stun = HIT_STUN;
   t.grounded = false;
 }

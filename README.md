@@ -1,10 +1,17 @@
 # ⚔️ Arena Brawlers (MVP)
 
-A browser-based **online multiplayer arena brawler** set in a low-poly **medieval
-gladiator arena** — a circular sand pit ringed by stone walls, towers, banners and
-a cheering crowd. Up to **3 players** fight; last one standing wins the round,
-first to **5 points** wins the match. The environment is fully procedural
+A browser-based **true first-person** online multiplayer **medieval gladiator**
+combat game — a circular sand pit ringed by stone walls, towers, banners and a
+cheering crowd. You look through your gladiator's eyes, **aim attacks with the
+mouse**, and fight with whatever weapons you find. Up to **3 players**; last one
+standing wins the round, first to **5 points** wins the match. Fully procedural
 Three.js geometry (no external art assets) with synthesized crowd/combat audio.
+
+Combat is **aim- and timing-based** (think Chivalry / Mordhau, lightweight):
+mouse-aimed melee with windup→swing→recovery arc traces, **directional blocking**
+(blocks only work from the front), physics projectiles (bow draw-and-release,
+crossbow, throwing knives), thrown explosives (grenade, fire bomb) and placed
+traps (land mine, spike trap), all pulled from **weighted-rarity** weapon crates.
 
 - **Server-authoritative** networking (server owns positions, health, damage,
   knockback, round state). Clients send only input + attack requests.
@@ -112,13 +119,24 @@ npm run build:shared  # rebuild the shared package after editing it
 
 ### Controls
 
+**Click the arena to capture the mouse** (Pointer Lock) — then you're in first
+person. **ESC** releases the cursor.
+
 | Action | Input            |
 | ------ | ---------------- |
-| Move   | `W` `A` `S` `D`  |
-| Jump   | `Space` (double-jump supported for recovery) |
-| Dash   | `Shift` (2 s cooldown) |
-| Attack | **Left mouse**   |
-| Block  | **Right mouse** (hold — 70% damage & knockback reduction, slower, can't attack) |
+| Look / aim | **Mouse** (yaw + pitch) |
+| Move   | `W` `A` `S` `D` (relative to where you look) |
+| Jump   | `Space` (double-jump for recovery) |
+| Dash   | `Shift` (2 s cooldown — bursts in your aim direction) |
+| Attack | **Left mouse** (hold to draw a bow) |
+| Block  | **Right mouse** (hold — raise weapon/shield; only blocks hits from the front) |
+
+Weapons come from crates (every 5–8 s, up to 10 at once) with **weighted rarity**:
+melee (dagger, sword, axe, mace, spear, war hammer, halberd, sword & shield),
+ranged (bow, crossbow, throwing knives), explosives (grenade, fire bomb), traps
+(land mine, spike trap), and a legendary Excalibur. Ranged/thrown/placed weapons
+have limited uses, then you revert to the starter sword. All stats live in
+[`packages/shared/src/weapons.ts`](packages/shared/src/weapons.ts).
 
 ### Rules
 

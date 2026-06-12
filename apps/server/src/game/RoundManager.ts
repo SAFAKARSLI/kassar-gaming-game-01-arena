@@ -24,6 +24,7 @@ export interface RoundHost {
   state: ArenaState;
   respawnAll(): void;
   clearCrates(): void;
+  clearEntities(): void;
 }
 
 export class RoundManager {
@@ -81,6 +82,7 @@ export class RoundManager {
   private startCountdown(): void {
     this.host.respawnAll();
     this.host.clearCrates();
+    this.host.clearEntities();
     this.state.roundState = RoundState.Countdown;
     this.state.roundWinnerId = '';
     this.timer = COUNTDOWN_MS;

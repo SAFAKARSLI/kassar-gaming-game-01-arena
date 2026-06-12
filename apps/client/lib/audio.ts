@@ -163,6 +163,40 @@ class AudioManager {
     }
   }
 
+  /** Explosion — boom + noise burst. */
+  explosion(): void {
+    const ctx = this.ctx;
+    const master = this.master;
+    if (!ctx || !master) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(35, now + 0.4);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.4, now);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    osc.connect(og).connect(master);
+    osc.start(now);
+    osc.stop(now + 0.55);
+
+    const noise = this.noiseBuffer;
+    if (noise) {
+      const src = ctx.createBufferSource();
+      src.buffer = noise;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(1800, now);
+      lp.frequency.exponentialRampToValueAtTime(300, now + 0.4);
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.35, now);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+      src.connect(lp).connect(ng).connect(master);
+      src.start(now);
+      src.stop(now + 0.5);
+    }
+  }
+
   /** Metallic shield block clang. */
   block(): void {
     const ctx = this.ctx;

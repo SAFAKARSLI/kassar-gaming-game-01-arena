@@ -1,107 +1,151 @@
 import { useEffect, useRef } from 'react';
+import { DEFAULT_MOUSE_SENS, PITCH_MIN, PITCH_MAX } from '@arena/shared';
 
 /**
- * Mutable input snapshot read every frame by the game loop. Movement axes and
- * `block` are level-triggered (held); `jumpQueued`, `dashQueued` and
- * `attackQueued` are edge-triggered one-shots consumed by the loop.
+ * First-person input: Pointer Lock mouse-look (yaw/pitch) plus WASD, jump, dash,
+ * block and weapon use. Movement booleans are raw; the game loop converts them
+ * into a world-space vector using the look yaw.
  */
 export interface InputState {
-  moveX: number;
-  moveZ: number;
+  forward: boolean;
+  back: boolean;
+  left: boolean;
+  right: boolean;
+  /** Look yaw (radians, accumulates with mouse X). */
+  yaw: number;
+  /** Camera pitch (radians, clamped). */
+  pitch: number;
   block: boolean;
-  facing: number;
+  /** Pointer is currently locked (actively playing). */
+  locked: boolean;
+  /** LMB currently held (for bow charge). */
+  using: boolean;
+  // edge-triggered one-shots, consumed by the loop
   jumpQueued: boolean;
   dashQueued: boolean;
-  attackQueued: boolean;
+  useStartQueued: boolean;
+  useEndQueued: boolean;
 }
 
 function emptyInput(): InputState {
   return {
-    moveX: 0,
-    moveZ: 0,
+    forward: false,
+    back: false,
+    left: false,
+    right: false,
+    yaw: 0,
+    pitch: 0,
     block: false,
-    facing: 1,
+    locked: false,
+    using: false,
     jumpQueued: false,
     dashQueued: false,
-    attackQueued: false,
+    useStartQueued: false,
+    useEndQueued: false,
   };
 }
 
-/**
- * Attach global keyboard/mouse listeners and expose a stable ref with the
- * current input. `enabled` is read live so spectators stop steering.
- */
-export function useInput(enabledRef: { current: boolean }): React.MutableRefObject<InputState> {
+export interface UseInputResult {
+  inputRef: React.MutableRefObject<InputState>;
+  requestPointerLock: () => void;
+}
+
+export function useInput(enabledRef: { current: boolean }): UseInputResult {
   const inputRef = useRef<InputState>(emptyInput());
-  const keys = useRef<Record<string, boolean>>({});
+  const elementRef = useRef<HTMLElement | null>(null);
+
+  const requestPointerLock = (): void => {
+    const el = elementRef.current ?? document.body;
+    void el.requestPointerLock?.();
+  };
 
   useEffect(() => {
-    function recompute(): void {
-      const s = inputRef.current;
-      const left = keys.current['a'] || keys.current['arrowleft'] ? 1 : 0;
-      const right = keys.current['d'] || keys.current['arrowright'] ? 1 : 0;
-      const up = keys.current['w'] || keys.current['arrowup'] ? 1 : 0;
-      const down = keys.current['s'] || keys.current['arrowdown'] ? 1 : 0;
-      s.moveX = right - left;
-      s.moveZ = down - up; // forward (away from camera) is +Z here, but kept subtle
-      if (s.moveX > 0) s.facing = 1;
-      else if (s.moveX < 0) s.facing = -1;
-    }
+    elementRef.current = document.body;
+    const s = inputRef.current;
 
     function onKeyDown(e: KeyboardEvent): void {
-      if (!enabledRef.current) return;
-      const key = e.key.toLowerCase();
-      if (e.repeat) {
-        if (key !== ' ' && key !== 'shift') keys.current[key] = true;
-        return;
-      }
-      keys.current[key] = true;
-      if (key === ' ') inputRef.current.jumpQueued = true;
-      if (key === 'shift') inputRef.current.dashQueued = true;
-      recompute();
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') s.forward = true;
+      else if (k === 's' || k === 'arrowdown') s.back = true;
+      else if (k === 'a' || k === 'arrowleft') s.left = true;
+      else if (k === 'd' || k === 'arrowright') s.right = true;
+      else if (k === ' ' && !e.repeat) s.jumpQueued = true;
+      else if (k === 'shift' && !e.repeat) s.dashQueued = true;
     }
 
     function onKeyUp(e: KeyboardEvent): void {
-      const key = e.key.toLowerCase();
-      keys.current[key] = false;
-      recompute();
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') s.forward = false;
+      else if (k === 's' || k === 'arrowdown') s.back = false;
+      else if (k === 'a' || k === 'arrowleft') s.left = false;
+      else if (k === 'd' || k === 'arrowright') s.right = false;
+    }
+
+    function onMouseMove(e: MouseEvent): void {
+      if (!s.locked) return;
+      s.yaw -= e.movementX * DEFAULT_MOUSE_SENS;
+      s.pitch -= e.movementY * DEFAULT_MOUSE_SENS;
+      if (s.pitch < PITCH_MIN) s.pitch = PITCH_MIN;
+      if (s.pitch > PITCH_MAX) s.pitch = PITCH_MAX;
     }
 
     function onMouseDown(e: MouseEvent): void {
-      if (!enabledRef.current) return;
-      if (e.button === 0) inputRef.current.attackQueued = true;
-      if (e.button === 2) inputRef.current.block = true;
+      if (!s.locked || !enabledRef.current) return;
+      if (e.button === 0) {
+        s.using = true;
+        s.useStartQueued = true;
+      } else if (e.button === 2) {
+        s.block = true;
+      }
     }
 
     function onMouseUp(e: MouseEvent): void {
-      if (e.button === 2) inputRef.current.block = false;
+      if (e.button === 0) {
+        if (s.using) s.useEndQueued = true;
+        s.using = false;
+      } else if (e.button === 2) {
+        s.block = false;
+      }
     }
 
     function onContextMenu(e: MouseEvent): void {
       e.preventDefault();
     }
 
+    function onLockChange(): void {
+      s.locked = document.pointerLockElement != null;
+      if (!s.locked) {
+        // Dropped lock (ESC) — release held controls.
+        s.forward = s.back = s.left = s.right = false;
+        s.block = false;
+        s.using = false;
+      }
+    }
+
     function onBlur(): void {
-      keys.current = {};
-      inputRef.current = emptyInput();
+      Object.assign(inputRef.current, emptyInput(), { yaw: s.yaw, pitch: s.pitch });
     }
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('contextmenu', onContextMenu);
+    document.addEventListener('pointerlockchange', onLockChange);
     window.addEventListener('blur', onBlur);
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('contextmenu', onContextMenu);
+      document.removeEventListener('pointerlockchange', onLockChange);
       window.removeEventListener('blur', onBlur);
     };
   }, [enabledRef]);
 
-  return inputRef;
+  return { inputRef, requestPointerLock };
 }

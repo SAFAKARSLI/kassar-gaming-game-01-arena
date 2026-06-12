@@ -93,13 +93,20 @@ export const SPAWN_POINTS: readonly { x: number; y: number; z: number }[] = SPAW
   (g) => ({ x: g.x * 0.82, y: 2, z: g.z * 0.82 }),
 );
 
-/** Predefined crate spawn points: center, atop the raised platforms, and a couple in the sand. */
+/** Predefined crate spawn points spread across the pit (center, platforms, a ring). */
 export const CRATE_SPAWN_POINTS: readonly { x: number; y: number; z: number }[] = [
   { x: 0, y: 1.4, z: 0 },
   { x: -6.5, y: 2.3, z: -3.5 },
   { x: 6.5, y: 2.3, z: -3.5 },
   { x: -4.5, y: 1.4, z: 4.5 },
   { x: 4.5, y: 1.4, z: 4.5 },
+  { x: -9, y: 1.4, z: 0 },
+  { x: 9, y: 1.4, z: 0 },
+  { x: 0, y: 1.4, z: 7 },
+  { x: 0, y: 1.4, z: -8 },
+  { x: -5, y: 1.4, z: -7 },
+  { x: 5, y: 1.4, z: -7 },
+  { x: 2.5, y: 1.4, z: 2.5 },
 ];
 
 export function spawnPoint(index: number): { x: number; y: number; z: number } {
