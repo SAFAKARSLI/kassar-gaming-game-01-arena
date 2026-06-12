@@ -83,7 +83,7 @@ export function useInput(enabledRef: { current: boolean }): UseInputResult {
 
     function onMouseMove(e: MouseEvent): void {
       if (!s.locked) return;
-      s.yaw -= e.movementX * DEFAULT_MOUSE_SENS;
+      s.yaw += e.movementX * DEFAULT_MOUSE_SENS;
       s.pitch -= e.movementY * DEFAULT_MOUSE_SENS;
       if (s.pitch < PITCH_MIN) s.pitch = PITCH_MIN;
       if (s.pitch > PITCH_MAX) s.pitch = PITCH_MAX;
