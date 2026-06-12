@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { DEFAULT_MOUSE_SENS, PITCH_MIN, PITCH_MAX } from '@arena/shared';
 
+const MAX_POINTER_DELTA = 100;
+
 /**
  * First-person input: Pointer Lock mouse-look (yaw/pitch) plus WASD, jump, dash,
  * block and weapon use. Movement booleans are raw; the game loop converts them
@@ -62,6 +64,7 @@ export function useInput(enabledRef: { current: boolean }): UseInputResult {
   useEffect(() => {
     elementRef.current = document.body;
     const s = inputRef.current;
+    let skipNextMouseMove = false;
 
     function onKeyDown(e: KeyboardEvent): void {
       const k = e.key.toLowerCase();
@@ -83,8 +86,14 @@ export function useInput(enabledRef: { current: boolean }): UseInputResult {
 
     function onMouseMove(e: MouseEvent): void {
       if (!s.locked) return;
-      s.yaw += e.movementX * DEFAULT_MOUSE_SENS;
-      s.pitch -= e.movementY * DEFAULT_MOUSE_SENS;
+      if (skipNextMouseMove) {
+        skipNextMouseMove = false;
+        return;
+      }
+      const dx = clamp(e.movementX, -MAX_POINTER_DELTA, MAX_POINTER_DELTA);
+      const dy = clamp(e.movementY, -MAX_POINTER_DELTA, MAX_POINTER_DELTA);
+      s.yaw += dx * DEFAULT_MOUSE_SENS;
+      s.pitch -= dy * DEFAULT_MOUSE_SENS;
       if (s.pitch < PITCH_MIN) s.pitch = PITCH_MIN;
       if (s.pitch > PITCH_MAX) s.pitch = PITCH_MAX;
     }
@@ -114,6 +123,7 @@ export function useInput(enabledRef: { current: boolean }): UseInputResult {
 
     function onLockChange(): void {
       s.locked = document.pointerLockElement != null;
+      skipNextMouseMove = s.locked;
       if (!s.locked) {
         // Dropped lock (ESC) — release held controls.
         s.forward = s.back = s.left = s.right = false;
@@ -148,4 +158,8 @@ export function useInput(enabledRef: { current: boolean }): UseInputResult {
   }, [enabledRef]);
 
   return { inputRef, requestPointerLock };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

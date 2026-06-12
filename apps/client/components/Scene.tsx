@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import {
+  INPUT_SEND_RATE,
   RoundState,
   stepKinematics,
   createTransient,
@@ -121,6 +122,7 @@ function PredictionLoop({
   pred: PredState;
 }) {
   const seq = useRef(0);
+  const lastInputSentAt = useRef(0);
 
   useFrame((_state, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05);
@@ -173,7 +175,18 @@ function PredictionLoop({
       dash: enabled && dash,
       block: enabled && input.block,
     };
-    room.send('input', msg);
+    const sendIntervalMs = 1000 / INPUT_SEND_RATE;
+    const shouldSendInput =
+      now - lastInputSentAt.current >= sendIntervalMs ||
+      msg.jump ||
+      msg.dash ||
+      useStart ||
+      useEnd ||
+      msg.block !== local.blocking;
+    if (shouldSendInput) {
+      lastInputSentAt.current = now;
+      room.send('input', msg);
+    }
 
     if (enabled && useStart) {
       room.send('useStart', { yaw, aimX, aimY, aimZ });
