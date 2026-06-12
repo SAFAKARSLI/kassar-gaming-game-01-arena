@@ -162,13 +162,16 @@ check. Your URL is `wss://<your-app>.onrender.com`.
 
 ### 2. Deploy the client to Vercel
 
-The repo includes [`vercel.json`](vercel.json) which builds the shared package
-then the Next.js app.
+The repo includes [`vercel.json`](vercel.json) with `buildCommand: npm run build`.
+Vercel auto-detects the Next.js app in `apps/client` and runs the build there;
+the client's `prebuild` script compiles the shared package first, so the build
+is self-contained.
 
 1. In Vercel: **Add New Project**, import this repo.
-2. Leave the **Root Directory** as the repo root (the `vercel.json` handles the
-   monorepo build: `npm run build:shared && npm run build -w @arena/client`,
-   output `apps/client/.next`).
+2. Leave the **Root Directory** as the repo root — Vercel detects the Next.js app
+   under `apps/client` automatically. (If Vercel asks, you may also set the Root
+   Directory to `apps/client`; both work because `prebuild` builds the shared
+   package.)
 3. Add an **Environment Variable**:
    - `NEXT_PUBLIC_SERVER_URL = wss://<your-railway-or-render-domain>`
      (use `wss://` — Vercel is HTTPS, so the WebSocket must be secure).
